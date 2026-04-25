@@ -1,0 +1,60 @@
+drop type student_type;
+drop type body student_type;
+drop type bursier_type;
+drop type body bursier_type;
+
+CREATE OR REPLACE TYPE student_type AS OBJECT (
+  nume VARCHAR2(50),
+  prenume VARCHAR2(50),
+  media NUMBER,
+  NOT FINAL MEMBER FUNCTION compare(student student_type) RETURN NUMBER,
+  NOT FINAL MEMBER PROCEDURE print_info
+) NOT FINAL ;
+
+CREATE TYPE BODY student_type AS
+  NOT FINAL MEMBER FUNCTION compare(student student_type) RETURN NUMBER IS
+  BEGIN
+    IF self.media > student.media THEN
+      RETURN 1;
+    ELSIF self.media < student.media THEN
+      RETURN -1;
+    ELSE
+      RETURN 0;
+    END IF;
+  END compare;
+
+  NOT FINAL MEMBER PROCEDURE print_info IS
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE('Nume: ' || self.nume || ', Prenume: ' || self.prenume || ', Media: ' || self.media);
+  END print_info;
+END;
+
+CREATE TYPE bursier_type UNDER student_type (
+  bursa NUMBER,
+  OVERRIDING MEMBER PROCEDURE print_info
+);
+
+CREATE OR REPLACE TYPE BODY bursier_type AS
+  OVERRIDING MEMBER PROCEDURE print_info IS
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE('Nume: ' || self.nume || ', Prenume: ' || self.prenume || ', Media: ' || self.media || ', Bursa: ' || self.bursa);
+END print_info;
+END;
+
+
+DECLARE
+  TYPE bursier_list IS TABLE OF bursier_type;
+  v_bursieri bursier_list := bursier_list();
+BEGIN
+  SELECT bursier_type(nume, prenume, AVG(valoare), bursa)
+    BULK COLLECT INTO v_bursieri
+    FROM studenti s
+    JOIN note n ON s.id = n.id_student
+   WHERE s.bursa IS NOT NULL
+   GROUP BY s.nume, s.prenume, s.bursa
+   ORDER BY AVG(valoare) DESC;
+   
+  FOR i IN 1..v_bursieri.COUNT LOOP
+    v_bursieri(i).print_info();
+  END LOOP;
+END;
